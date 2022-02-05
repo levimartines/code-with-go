@@ -15,3 +15,6 @@ test:
 
 run:
 	go run main.go
+
+mock:
+	mockgen -destination ../mock/store.go -package mockdb . Store

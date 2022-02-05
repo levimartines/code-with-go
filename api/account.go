@@ -76,7 +76,7 @@ func (server *Server) getAccountById(ctx *gin.Context) {
 		if err == sql.ErrNoRows {
 			ctx.JSON(http.StatusNotFound, errorResponse(err))
 		} else {
-			ctx.JSON(http.StatusBadRequest, errorResponse(err))
+			ctx.JSON(http.StatusInternalServerError, errorResponse(err))
 		}
 		return
 	}
