@@ -17,4 +17,4 @@ run:
 	go run main.go
 
 mock:
-	mockgen -destination ../mock/store.go -package mockdb . Store
+	cd db/sqlc && mockgen -destination ../mock/store.go -package mockdb . Store
