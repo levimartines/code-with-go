@@ -25,6 +25,7 @@ func NewServer(store db.Store) *Server {
 			log.Fatalf("Error during binding custom validation: %v", err)
 		}
 	}
+	router.POST("/users", server.createUser)
 
 	router.POST("/accounts", server.createAccount)
 	router.GET("/accounts/:id", server.getAccountById)
