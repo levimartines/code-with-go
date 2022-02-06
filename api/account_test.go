@@ -122,8 +122,13 @@ func TestApi_CreateAccount(t *testing.T) {
 				Currency: account.Currency,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
+				params := db.CreateAccountParams{
+					Owner:    account.Owner,
+					Balance:  account.Balance,
+					Currency: account.Currency,
+				}
 				store.EXPECT().
-					CreateAccount(gomock.Any(), gomock.Any()).
+					CreateAccount(gomock.Any(), gomock.Eq(params)).
 					Times(1).
 					Return(db.Account{
 						ID:        account.ID,
