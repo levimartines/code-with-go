@@ -9,17 +9,17 @@ import (
 func Test_Password(t *testing.T) {
 	rawPassword := RandomString(6)
 
-	password, err := HashPassword(rawPassword)
+	hash, err := HashPassword(rawPassword)
 	require.NoError(t, err)
-	require.NotEmpty(t, password)
+	require.NotEmpty(t, hash)
 
 	newPassword, err := HashPassword(rawPassword)
 	require.NoError(t, err)
-	require.NotEqual(t, password, newPassword)
+	require.NotEqual(t, hash, newPassword)
 
-	err = CheckPassword(password, rawPassword)
+	err = CheckPassword(rawPassword, hash)
 	require.NoError(t, err)
 
-	err = CheckPassword(password, "password")
+	err = CheckPassword("hash", hash)
 	require.EqualError(t, err, bcrypt.ErrMismatchedHashAndPassword.Error())
 }

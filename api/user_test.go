@@ -7,45 +7,69 @@ import (
 	"code-with-go/util"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
-	"time"
 )
 
-const password = "password"
+type eqCreateUserParamsMatcher struct {
+	arg      db.CreateUserParams
+	password string
+}
+
+func (eq eqCreateUserParamsMatcher) Matches(x interface{}) bool {
+	arg, ok := x.(db.CreateUserParams)
+	if !ok {
+		return false
+	}
+	err := util.CheckPassword(eq.password, arg.HashedPassword)
+	if err != nil {
+		return false
+	}
+	eq.arg.HashedPassword = arg.HashedPassword
+	return reflect.DeepEqual(eq.arg, arg)
+}
+
+func (eq eqCreateUserParamsMatcher) String() string {
+	return fmt.Sprintf("matches arg %v and password %v", eq.arg, eq.password)
+}
+
+func EqCreateUserParams(arg db.CreateUserParams, password string) gomock.Matcher {
+	return eqCreateUserParamsMatcher{arg, password}
+}
 
 func TestApi_CreateUser(t *testing.T) {
-	user := randomUser()
+	user, password := randomUser(t)
 	testCases := []struct {
 		name          string
-		body          createUserRequest
+		body          gin.H
 		buildStubs    func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name: "OK",
-			body: createUserRequest{
-				Username: user.Username,
-				Password: password,
-				FullName: user.FullName,
-				Email:    user.Email,
+			body: gin.H{
+				"username":  user.Username,
+				"password":  password,
+				"full_name": user.FullName,
+				"email":     user.Email,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
+				args := db.CreateUserParams{
+					Username: user.Username,
+					FullName: user.FullName,
+					Email:    user.Email,
+				}
 				store.EXPECT().
-					CreateUser(gomock.Any(), gomock.Any()).
+					CreateUser(gomock.Any(), EqCreateUserParams(args, password)).
 					Times(1).
-					Return(db.User{
-						Username:          user.Username,
-						HashedPassword:    user.HashedPassword,
-						FullName:          user.FullName,
-						Email:             user.Email,
-						PasswordChangedAt: user.PasswordChangedAt,
-						CreatedAt:         user.CreatedAt,
-					}, nil)
+					Return(user, nil)
 			},
 			checkResponse: func(t *testing.T, recorder *httptest.ResponseRecorder) {
 				require.Equal(t, http.StatusOK, recorder.Code)
@@ -54,11 +78,11 @@ func TestApi_CreateUser(t *testing.T) {
 		},
 		{
 			name: "Bad Request",
-			body: createUserRequest{
-				Username: user.Username,
-				Password: "",
-				FullName: user.FullName,
-				Email:    user.Email,
+			body: gin.H{
+				"username":  user.Username,
+				"password":  "",
+				"full_name": user.FullName,
+				"email":     user.Email,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -72,11 +96,11 @@ func TestApi_CreateUser(t *testing.T) {
 		},
 		{
 			name: "Internal Server Error",
-			body: createUserRequest{
-				Username: user.Username,
-				Password: password,
-				FullName: user.FullName,
-				Email:    user.Email,
+			body: gin.H{
+				"username":  user.Username,
+				"password":  password,
+				"full_name": user.FullName,
+				"email":     user.Email,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -121,25 +145,24 @@ func requireBodyMatchesUser(t *testing.T, expected db.User, body *bytes.Buffer) 
 	data, err := ioutil.ReadAll(body)
 	require.NoError(t, err)
 
-	var response createUserResponse
+	var response db.User
 	err = json.Unmarshal(data, &response)
 
 	require.NoError(t, err)
 	require.Equal(t, expected.Username, response.Username)
 	require.Equal(t, expected.FullName, response.FullName)
 	require.Equal(t, expected.Email, response.Email)
-	require.Equal(t, expected.CreatedAt, response.CreatedAt)
-	require.Equal(t, expected.PasswordChangedAt, response.PasswordChangedAt)
+	require.Empty(t, response.HashedPassword)
 }
 
-func randomUser() db.User {
-	hash, _ := util.HashPassword(password)
+func randomUser(t *testing.T) (db.User, string) {
+	password := util.RandomString(6)
+	hash, err := util.HashPassword(password)
+	require.NoError(t, err)
 	return db.User{
-		Username:          util.RandomOwner(),
-		HashedPassword:    hash,
-		FullName:          util.RandomOwner(),
-		Email:             util.RandomEmail(),
-		PasswordChangedAt: time.Time{},
-		CreatedAt:         time.Time{},
-	}
+		Username:       util.RandomOwner(),
+		HashedPassword: hash,
+		FullName:       util.RandomOwner(),
+		Email:          util.RandomEmail(),
+	}, password
 }
