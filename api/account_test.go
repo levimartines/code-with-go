@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
@@ -111,15 +112,15 @@ func TestApi_CreateAccount(t *testing.T) {
 	account.Balance = 0
 	testCases := []struct {
 		name          string
-		body          createAccountRequest
+		body          gin.H
 		buildStubs    func(store *mockdb.MockStore)
 		checkResponse func(t *testing.T, recorder *httptest.ResponseRecorder)
 	}{
 		{
 			name: "OK",
-			body: createAccountRequest{
-				Owner:    account.Owner,
-				Currency: account.Currency,
+			body: gin.H{
+				"owner":    account.Owner,
+				"currency": account.Currency,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				params := db.CreateAccountParams{
@@ -145,9 +146,9 @@ func TestApi_CreateAccount(t *testing.T) {
 		},
 		{
 			name: "Bad Request",
-			body: createAccountRequest{
-				Owner:    account.Owner,
-				Currency: "BRL",
+			body: gin.H{
+				"owner":    account.Owner,
+				"currency": "BRL",
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
@@ -161,9 +162,9 @@ func TestApi_CreateAccount(t *testing.T) {
 		},
 		{
 			name: "Internal Server Error",
-			body: createAccountRequest{
-				Owner:    account.Owner,
-				Currency: account.Currency,
+			body: gin.H{
+				"owner":    account.Owner,
+				"currency": account.Currency,
 			},
 			buildStubs: func(store *mockdb.MockStore) {
 				store.EXPECT().
