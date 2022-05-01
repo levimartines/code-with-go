@@ -125,7 +125,7 @@ func TestApi_CreateUser(t *testing.T) {
 			testCase.buildStubs(store)
 
 			// start test server and send the request
-			server := NewServer(store)
+			server := NewTestServer(t, store)
 			recorder := httptest.NewRecorder()
 
 			// Marshal body data to JSON
